@@ -120,5 +120,5 @@ Heuristics and architecture patterns were designed with AI assistance to ensure 
 - **OCR Accuracy**: Tesseract.js is great for general text; a specialized license plate recognition (LPR) model would yield better results.
 - **Storage**: Images are stored locally; production should use S3 or similar.
 ## Test Preview
-![With Blur](./screenshots/Screenshot 2026-05-17 at 7.02.39 PM.png)
-![Without Blur](./screenshots/Screenshot 2026-05-17 at 7.04.20 PM.png)
+![With Blur](./screenshots/with_blur.png)
+![Without Blur](./screenshots/without_blur.png)
