@@ -30,7 +30,7 @@ graph TD
 - **Blur Detection**: Laplacian variance calculation. High variance indicates a sharp image.
 - **Brightness Analysis**: Average pixel intensity stats via Sharp.
 - **Duplicate Detection**: Perceptual hashing (pHash) via `imghash` to identify similar images.
-- **OCR & Validation**: Tesseract.js for extracting Indian number plate text with regex validation (`^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4}$`).
+- **OCR & Validation**: Optimized multi-pass Tesseract.js pipeline utilizing a single reused worker (reducing memory footprint to prevent container OOM crashes). Runs OCR using select page segmentation modes (PSM 7 & 8) on preprocessed image variants. Implements early breakout on high-confidence plate detection (confidence >= 80%) for sub-2-second execution, with custom character correction and regex validation (`^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4}$`).
 - **Screenshot Detection**: Heuristic-based checks using EXIF metadata, aspect ratios, and format analysis.
 
 ### 3. Confidence Scores
@@ -65,6 +65,24 @@ Generates scores (0-100) based on heuristic outcomes to provide a reliability me
     pip install -r requirements.txt
     streamlit run app.py
     ```
+
+### Production Deployment
+
+When deploying the application to cloud platforms (e.g., Render, Heroku, or custom container hosting):
+
+#### Environment Variables
+
+1. **Backend Web Service:**
+   * `NODE_ENV`: Set to `production` (enables JSON logging to stdout/stderr and optimized error outputs).
+   * `MONGODB_URI`: Connection string for your hosted MongoDB instance (e.g., MongoDB Atlas). Ensure your database firewall allows connections from your deployment IP (e.g., whitelist `0.0.0.0/0` on Atlas).
+   * `REDIS_URL`: Connection string for your hosted Redis queue (e.g., Upstash or Redis Cloud). Supports secure TLS (`rediss://`) out of the box.
+   
+2. **Frontend App (Streamlit):**
+   * `API_BASE_URL`: Public endpoint of your deployed backend (e.g., `https://my-backend.onrender.com/api`). Trailing slashes and missing `/api` suffixes are automatically handled.
+
+#### Performance & Memory Optimization
+* **Worker & RAM Efficiency:** Spawning Tesseract workers is highly memory intensive. The codebase is optimized for low-memory tiers (e.g., 512MB RAM free instances) by reusing workers, optimizing image passes, and turning off Sharp's internal image cache (`sharp.cache(false)`).
+* **Automatic Directory Creation:** The backend dynamically checks and creates the required `uploads/` directory on startup if it doesn't already exist.
 
 ## API Documentation
 
