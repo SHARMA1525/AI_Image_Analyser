@@ -6,7 +6,9 @@ from PIL import Image
 import io
 import os
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000/api")
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000/api").rstrip('/')
+if not API_BASE_URL.endswith('/api'):
+    API_BASE_URL = f"{API_BASE_URL}/api"
 
 st.set_page_config(
     page_title="Vehicle Image Analyser",
@@ -47,7 +49,7 @@ if uploaded_file is not None:
         if st.button("Analyze Image"):
             try:
                 with st.spinner("Uploading to backend..."):
-                    response = requests.post(f"{API_BASE_URL}/upload", files=files)
+                    response = requests.post(f"{API_BASE_URL}/upload", files=files, timeout=60)
                     response.raise_for_status()
                     data = response.json()
                     processing_id = data["processing_id"]
@@ -58,7 +60,7 @@ if uploaded_file is not None:
                 
                 start_time = time.time()
                 while True:
-                    status_response = requests.get(f"{API_BASE_URL}/status/{processing_id}")
+                    status_response = requests.get(f"{API_BASE_URL}/status/{processing_id}", timeout=10)
                     status_response.raise_for_status()
                     status_data = status_response.json()
                     status = status_data["status"]
@@ -79,7 +81,7 @@ if uploaded_file is not None:
                     time.sleep(1)
                 
                 if status == "completed":
-                    results_response = requests.get(f"{API_BASE_URL}/results/{processing_id}")
+                    results_response = requests.get(f"{API_BASE_URL}/results/{processing_id}", timeout=15)
                     results_response.raise_for_status()
                     full_data = results_response.json()
                     

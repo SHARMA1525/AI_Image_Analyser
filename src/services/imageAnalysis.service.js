@@ -1,4 +1,5 @@
 const sharp = require('sharp');
+sharp.cache(false);
 const Tesseract = require('tesseract.js');
 const imghash = require('imghash');
 const path = require('path');
@@ -156,23 +157,25 @@ class ImageAnalysisService {
 
   async performOCR(imagePath) {
     const tempFiles = [];
+    let worker = null;
 
     try {
       const variants = await this._generateOCRVariants(imagePath);
       tempFiles.push(...variants);
-      const psmModes = [7, 6, 11, 8];
+      const psmModes = [7, 8]; // PSM 7 (single line) & 8 (single word) are the most accurate and fastest for license plates
 
       let bestPlate = null;
       let bestConfidence = 0;
 
+      // Initialize Tesseract worker once and reuse it to save CPU and memory
+      worker = await Tesseract.createWorker('eng');
+
       for (const variantPath of variants) {
         for (const psm of psmModes) {
           try {
-            const { data: { text, confidence } } = await Tesseract.recognize(
+            const { data: { text, confidence } } = await worker.recognize(
               variantPath,
-              'eng',
               {
-                logger: () => {},
                 tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
                 tessedit_pageseg_mode: psm,
               }
@@ -195,6 +198,12 @@ class ImageAnalysisService {
             logger.warn(`[OCR] ${path.basename(variantPath)} PSM${psm}: ${err.message}`);
           }
         }
+
+        // Break early if we find a valid plate with high confidence
+        if (bestPlate && bestConfidence >= 80) {
+          logger.info(`[OCR] High confidence plate found (${bestConfidence.toFixed(1)}%). Breaking early.`);
+          break;
+        }
       }
 
       const isValid = bestPlate !== null;
@@ -210,6 +219,11 @@ class ImageAnalysisService {
       logger.error('OCR failed: %o', error);
       return { text: 'NOT_DETECTED', isValid: false, confidence: 0 };
     } finally {
+      // Clean up worker
+      if (worker) {
+        try { await worker.terminate(); } catch (_) {}
+      }
+      // Clean up temp files
       for (const f of tempFiles) {
         try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (_) {}
       }
