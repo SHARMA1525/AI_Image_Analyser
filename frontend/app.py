@@ -4,8 +4,9 @@ import time
 import pandas as pd
 from PIL import Image
 import io
+import os
 
-API_BASE_URL = "http://localhost:3000/api"
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000/api")
 
 st.set_page_config(
     page_title="Vehicle Image Analyser",
